@@ -1878,6 +1878,27 @@
   };
   const JOIN_TIMEOUT_MS = 15000;
 
+  // PeerJS's signaling socket (separate from the WebRTC data connections)
+  // can drop on a network change (wifi<->mobile data, backgrounding the
+  // tab) without destroying the Peer. While it's down, nobody can reach
+  // the host to join, and it surfaces as a bare 'network'/'disconnected'
+  // error. Auto-reconnect instead of treating it as fatal.
+  function setupPeerResilience(peer, onGiveUp){
+    let attempts = 0;
+    const maxAttempts = 5;
+    peer.on('disconnected', ()=>{
+      if(peer.destroyed) return;
+      attempts++;
+      if(attempts > maxAttempts){
+        onGiveUp();
+        return;
+      }
+      showRoomStatus('Conexión inestable, reconectando…', '');
+      setTimeout(()=>{ if(!peer.destroyed) peer.reconnect(); }, 1000 * attempts);
+    });
+    peer.on('open', ()=>{ attempts = 0; });
+  }
+
   function buildRoomLink(code){
     return location.origin + location.pathname + '?room=' + code;
   }
@@ -1973,10 +1994,13 @@
       showRoomStatus('Sala creada — compartí el código con tus amigos', '');
     });
     peer.on('connection', (conn)=> setupHostConnection(conn));
+    setupPeerResilience(peer, ()=> showRoomStatus('Se perdió la conexión con el servidor — recargá la página para reintentar', 'bad'));
     peer.on('error', (err)=>{
       if(err.type === 'unavailable-id' && room && !room.peer.open){
         peer.destroy();
         createRoom();
+      } else if(err.type === 'network' || err.type === 'disconnected'){
+        // transient signaling drop — setupPeerResilience already retries and reports it
       } else {
         showRoomStatus('Error de conexión: ' + err.type, 'bad');
       }
@@ -2110,7 +2134,14 @@
         if(!joined) showRoomStatus('No se pudo conectar con la sala — probá de nuevo', 'bad');
       });
     });
+    setupPeerResilience(peer, ()=>{
+      if(joined) showRoomStatus('Se perdió la conexión con el servidor — recargá la página para reintentar', 'bad');
+    });
     peer.on('error', (err)=>{
+      if(err.type === 'network' || err.type === 'disconnected'){
+        // transient signaling drop — setupPeerResilience already retries and reports it
+        return;
+      }
       clearTimeout(timeoutId);
       showRoomStatus('No se pudo conectar (código incorrecto o red): ' + err.type, 'bad');
     });
