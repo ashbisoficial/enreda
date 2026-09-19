@@ -540,6 +540,58 @@
   }
   .rules-close-row button{ flex:none; padding: 10px 20px; }
 
+  /* ---------- SHARE ROOM MODAL ---------- */
+
+  .share-modal{ max-width: 380px; width:100%; }
+  .share-link-row{
+    display:flex;
+    gap: 8px;
+    margin: 4px 0 16px;
+  }
+  .share-link-row input{
+    flex:1;
+    min-width: 0;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    padding: 9px 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(247,241,226,0.25);
+    background: rgba(10,18,15,0.35);
+    color: var(--paper);
+  }
+  .share-link-row button{ flex:none; padding: 9px 14px; }
+  .share-grid{
+    display:grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  .share-grid button{
+    display:flex;
+    align-items:center;
+    justify-content:flex-start;
+    gap: 8px;
+    flex:none;
+  }
+  .share-grid .ico{ font-size: 1.05rem; }
+  .share-qr-row{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap: 8px;
+    margin-top: 18px;
+  }
+  .share-qr-row img{
+    width: 168px;
+    height: 168px;
+    border-radius: 10px;
+    background: #fff;
+    padding: 8px;
+  }
+  .share-qr-row span{
+    font-size: 0.76rem;
+    color: rgba(247,241,226,0.65);
+  }
+
   /* ---------- REVEAL PANEL ---------- */
 
   .reveal{
@@ -875,6 +927,7 @@
           <div class="room-code-display">
             Sala: <b id="roomCodeLabel">—</b>
             <button class="secondary" id="btnCopyCode" type="button">Copiar código</button>
+            <button class="secondary" id="btnShareRoom" type="button">Compartir</button>
             <button class="secondary" id="btnLeaveRoom" type="button">Salir</button>
           </div>
           <ul class="room-players-list" id="roomPlayersList"></ul>
@@ -983,6 +1036,31 @@
   </div>
 
   <footer class="hint">Toca y arrastra sobre las letras para formar una palabra, luego suelta para enviarla.</footer>
+</div>
+
+<div class="rules-overlay hidden" id="shareOverlay">
+  <div class="rules-modal share-modal">
+    <h2>Invitá a tus amigos</h2>
+    <p>Compartí este enlace: al abrirlo entran directo a tu sala.</p>
+    <div class="share-link-row">
+      <input type="text" id="shareLinkInput" readonly>
+      <button class="primary" id="btnCopyLink" type="button">Copiar</button>
+    </div>
+    <div class="share-grid">
+      <button class="secondary hidden" id="btnShareNative" type="button"><span class="ico">📤</span> Compartir…</button>
+      <button class="secondary" id="btnShareWhatsapp" type="button"><span class="ico">💬</span> WhatsApp</button>
+      <button class="secondary" id="btnShareTelegram" type="button"><span class="ico">✈️</span> Telegram</button>
+      <button class="secondary" id="btnShareX" type="button"><span class="ico">𝕏</span> X / Twitter</button>
+      <button class="secondary" id="btnShareFacebook" type="button"><span class="ico">📘</span> Facebook</button>
+    </div>
+    <div class="share-qr-row">
+      <img id="shareQrImg" alt="Código QR de la sala" width="168" height="168">
+      <span>Escaneá para unirte desde el celular</span>
+    </div>
+    <div class="rules-close-row">
+      <button class="secondary" id="btnCloseShare" type="button">Cerrar</button>
+    </div>
+  </div>
 </div>
 
 <div class="rules-overlay hidden" id="rulesOverlay">
@@ -1127,6 +1205,17 @@
   const roomInfo = document.getElementById('roomInfo');
   const roomCodeLabel = document.getElementById('roomCodeLabel');
   const btnCopyCode = document.getElementById('btnCopyCode');
+  const btnShareRoom = document.getElementById('btnShareRoom');
+  const shareOverlay = document.getElementById('shareOverlay');
+  const shareLinkInput = document.getElementById('shareLinkInput');
+  const btnCopyLink = document.getElementById('btnCopyLink');
+  const btnCloseShare = document.getElementById('btnCloseShare');
+  const btnShareNative = document.getElementById('btnShareNative');
+  const btnShareWhatsapp = document.getElementById('btnShareWhatsapp');
+  const btnShareTelegram = document.getElementById('btnShareTelegram');
+  const btnShareX = document.getElementById('btnShareX');
+  const btnShareFacebook = document.getElementById('btnShareFacebook');
+  const shareQrImg = document.getElementById('shareQrImg');
   const btnLeaveRoom = document.getElementById('btnLeaveRoom');
   const roomPlayersList = document.getElementById('roomPlayersList');
   const roundsRow = document.getElementById('roundsRow');
@@ -1758,6 +1847,44 @@
   }
   function peerIdForCode(code){ return 'enreda-room-' + code; }
 
+  function buildRoomLink(code){
+    return location.origin + location.pathname + '?room=' + code;
+  }
+
+  function openShareModal(code){
+    const link = buildRoomLink(code);
+    shareLinkInput.value = link;
+    shareQrImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=8&data=' + encodeURIComponent(link);
+    const msg = `¡Jugá ENREDA conmigo! Entrá a la sala ${code}: ${link}`;
+    btnShareWhatsapp.onclick = ()=> window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
+    btnShareTelegram.onclick = ()=> window.open('https://t.me/share/url?url=' + encodeURIComponent(link) + '&text=' + encodeURIComponent(`¡Jugá ENREDA conmigo! Entrá a la sala ${code}:`), '_blank');
+    btnShareX.onclick = ()=> window.open('https://twitter.com/intent/tweet?text=' + encodeURIComponent(`¡Jugá ENREDA conmigo! Entrá a la sala ${code}:`) + '&url=' + encodeURIComponent(link), '_blank');
+    btnShareFacebook.onclick = ()=> window.open('https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(link), '_blank');
+    btnShareNative.classList.toggle('hidden', !navigator.share);
+    btnShareNative.onclick = ()=> navigator.share({ title:'ENREDA', text:`¡Jugá ENREDA conmigo! Entrá a la sala ${code}:`, url:link }).catch(()=>{});
+    shareOverlay.classList.remove('hidden');
+  }
+
+  btnShareRoom.addEventListener('click', ()=>{ if(room) openShareModal(room.code); });
+  btnCloseShare.addEventListener('click', ()=> shareOverlay.classList.add('hidden'));
+  shareOverlay.addEventListener('click', (e)=>{ if(e.target === shareOverlay) shareOverlay.classList.add('hidden'); });
+  btnCopyLink.addEventListener('click', ()=>{
+    navigator.clipboard.writeText(shareLinkInput.value).then(()=>{
+      btnCopyLink.textContent = '¡Copiado!';
+      setTimeout(()=> btnCopyLink.textContent = 'Copiar', 1500);
+    });
+  });
+
+  // Auto-fill the join form when opening a shared room link (?room=CODE)
+  (function initRoomLinkParam(){
+    const code = new URLSearchParams(location.search).get('room');
+    if(!code) return;
+    roomCodeInput.value = code.trim().toUpperCase();
+    joinRow.classList.remove('hidden');
+    onlineNameInput.focus();
+    showRoomStatus(`Te invitaron a la sala ${roomCodeInput.value} — poné tu nombre y tocá «Entrar»`, '');
+  })();
+
   function captureIdentity(){
     myName = onlineNameInput.value.trim();
     if(!myName){ showRoomStatus('Poné tu nombre o nick primero', 'bad'); return false; }
@@ -1779,6 +1906,7 @@
     btnRoomStart.classList.toggle('hidden', !room.isHost);
     updateOnlineModeVisibility();
     renderRoomPlayers();
+    history.replaceState(null, '', '?room=' + room.code);
   }
 
   function renderRoomPlayers(){
@@ -2104,6 +2232,7 @@
     }
     room.peer.destroy();
     room = null;
+    history.replaceState(null, '', location.pathname);
     identityForm.classList.remove('hidden');
     roomInfo.classList.add('hidden');
     leaderboardPanel.classList.add('hidden');
