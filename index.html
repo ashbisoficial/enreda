@@ -103,6 +103,10 @@
     margin-bottom: 12px;
   }
 
+  .board-frame #durationCard{
+    margin-bottom: 12px;
+  }
+
   #board{
     position: relative;
     display: grid;
@@ -907,6 +911,16 @@
 
   <div class="layout">
     <div class="board-frame">
+      <div class="card" id="durationCard">
+        <div class="timer-row">
+          <span class="clock" id="clock">03:00</span>
+          <div class="duration-select" id="durationSelect">
+            <button data-secs="120">2m</button>
+            <button data-secs="180" class="active">3m</button>
+            <button data-secs="300">5m</button>
+          </div>
+        </div>
+      </div>
       <div class="btn-row board-controls-row">
         <button class="secondary" id="btnShuffle">🎲 Barajar</button>
         <button class="primary" id="btnStart">▶ Empezar</button>
@@ -974,17 +988,6 @@
           <button class="secondary" id="btnAddPlayer" type="button">+ Añadir</button>
         </div>
         <ul class="player-chip-list" id="playerChipList"></ul>
-      </div>
-
-      <div class="card" id="durationCard">
-        <div class="timer-row">
-          <span class="clock" id="clock">03:00</span>
-          <div class="duration-select" id="durationSelect">
-            <button data-secs="120">2m</button>
-            <button data-secs="180" class="active">3m</button>
-            <button data-secs="300">5m</button>
-          </div>
-        </div>
       </div>
 
       <div class="card" id="localControlsCard">
