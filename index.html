@@ -81,6 +81,7 @@
 
   .board-frame{
     position: relative;
+    width: min(420px, 100%);
     background: linear-gradient(155deg, var(--wood-light), var(--wood) 45%, var(--wood-dark));
     border-radius: 22px;
     padding: 18px;
@@ -105,9 +106,10 @@
   #board{
     position: relative;
     display: grid;
-    grid-template-columns: repeat(5, min(15vw, 62px));
-    grid-template-rows: repeat(5, min(15vw, 62px));
-    gap: 8px;
+    grid-template-columns: repeat(5, 1fr);
+    grid-template-rows: repeat(5, 1fr);
+    aspect-ratio: 1 / 1;
+    gap: 2.2%;
     z-index: 2;
   }
 
@@ -175,7 +177,10 @@
 
   #ropeOverlay{
     position:absolute;
-    inset: 14px;
+    top: 14px;
+    left: 14px;
+    width: calc(100% - 28px);
+    height: calc(100% - 28px);
     z-index: 1;
     pointer-events: none;
     overflow: visible;
