@@ -98,12 +98,16 @@
     box-shadow: inset 0 4px 14px rgba(0,0,0,0.55);
   }
 
+  .board-controls-row{
+    margin-bottom: 12px;
+  }
+
   #board{
     position: relative;
     display: grid;
-    grid-template-columns: repeat(4, min(19vw, 78px));
-    grid-template-rows: repeat(4, min(19vw, 78px));
-    gap: 10px;
+    grid-template-columns: repeat(5, min(15vw, 62px));
+    grid-template-rows: repeat(5, min(15vw, 62px));
+    gap: 8px;
     z-index: 2;
   }
 
@@ -119,7 +123,7 @@
       0 7px 10px rgba(0,0,0,0.4);
     font-family: var(--font-display);
     font-weight: 700;
-    font-size: clamp(1.4rem, 4.4vw, 2rem);
+    font-size: clamp(1.1rem, 3.6vw, 1.7rem);
     color: var(--ink);
     user-select: none;
     -webkit-user-select: none;
@@ -889,7 +893,7 @@
 <div class="app">
   <header class="title-block">
     <h1>ENREDA</h1>
-    <p>16 dados, 4×4, y todas las palabras que puedas enlazar</p>
+    <p>25 dados, 5×5, y todas las palabras que puedas enlazar</p>
   </header>
 
   <div class="top-actions">
@@ -898,6 +902,10 @@
 
   <div class="layout">
     <div class="board-frame">
+      <div class="btn-row board-controls-row">
+        <button class="secondary" id="btnShuffle">🎲 Barajar</button>
+        <button class="primary" id="btnStart">▶ Empezar</button>
+      </div>
       <div class="board-inner">
         <div id="board"></div>
         <svg id="ropeOverlay"></svg>
@@ -978,10 +986,6 @@
         <div class="turn-banner" id="turnBanner"></div>
         <div class="current-word" id="currentWord">&nbsp;</div>
         <div class="message" id="message">Pulsa «Barajar» y luego «Empezar» para jugar</div>
-        <div class="btn-row" style="margin-top:8px;">
-          <button class="secondary" id="btnShuffle">🎲 Barajar</button>
-          <button class="primary" id="btnStart">▶ Empezar</button>
-        </div>
       </div>
 
       <div class="card">
@@ -1066,7 +1070,7 @@
 <div class="rules-overlay hidden" id="rulesOverlay">
   <div class="rules-modal">
     <h2>Cómo se juega ENREDA</h2>
-    <p>Es una réplica online de los clásicos juegos de letras con dados (tipo Boggle/Scrabble de dados): 16 dados forman un tablero de 4×4 y tienes un tiempo límite para encontrar tantas palabras como puedas.</p>
+    <p>Es una réplica online de los clásicos juegos de letras con dados (tipo Boggle/Scrabble de dados): 25 dados forman un tablero de 5×5 y tienes un tiempo límite para encontrar tantas palabras como puedas.</p>
 
     <h3>Formar palabras</h3>
     <ul>
@@ -1105,7 +1109,7 @@
 
   // ---------------- CONFIG ----------------
 
-  const SIZE = 4;
+  const SIZE = 5;
   const CELLS = SIZE * SIZE;
 
   // Spanish letter frequency weights (approx, x10)
@@ -1339,13 +1343,16 @@
     return VOWELS[Math.floor(Math.random()*VOWELS.length)];
   }
 
+  const MIN_VOWELS = Math.round(CELLS * 0.3);   // ~5 on a 4x4 board
+  const MAX_REPEATS = Math.max(3, Math.round(CELLS / 6)); // ~3 on a 4x4 board
+
   function generateLetters(){
     let out = [];
     for(let i=0;i<CELLS;i++) out.push(randLetter());
 
-    // ensure at least 5 vowels
+    // ensure a minimum share of vowels
     let guard = 0;
-    while(out.filter(l=>VOWELS.includes(l)).length < 5 && guard < 50){
+    while(out.filter(l=>VOWELS.includes(l)).length < MIN_VOWELS && guard < 50){
       const consonantIdxs = out.map((l,i)=>VOWELS.includes(l)?-1:i).filter(i=>i>=0);
       if(consonantIdxs.length === 0) break;
       const idx = consonantIdxs[Math.floor(Math.random()*consonantIdxs.length)];
@@ -1353,12 +1360,12 @@
       guard++;
     }
 
-    // cap repeats at 3
+    // cap repeats
     guard = 0;
     while(guard < 50){
       const counts = {};
       out.forEach(l=>counts[l]=(counts[l]||0)+1);
-      const over = Object.keys(counts).find(l=>counts[l] > 3);
+      const over = Object.keys(counts).find(l=>counts[l] > MAX_REPEATS);
       if(!over) break;
       const idx = out.indexOf(over);
       out[idx] = randLetter();
