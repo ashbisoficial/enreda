@@ -103,6 +103,10 @@
     margin-bottom: 12px;
   }
 
+  .board-frame #durationCard{
+    margin-bottom: 12px;
+  }
+
   #board{
     position: relative;
     display: grid;
@@ -907,6 +911,16 @@
 
   <div class="layout">
     <div class="board-frame">
+      <div class="card" id="durationCard">
+        <div class="timer-row">
+          <span class="clock" id="clock">03:00</span>
+          <div class="duration-select" id="durationSelect">
+            <button data-secs="120">2m</button>
+            <button data-secs="180" class="active">3m</button>
+            <button data-secs="300">5m</button>
+          </div>
+        </div>
+      </div>
       <div class="btn-row board-controls-row">
         <button class="secondary" id="btnShuffle">🎲 Barajar</button>
         <button class="primary" id="btnStart">▶ Empezar</button>
@@ -974,17 +988,6 @@
           <button class="secondary" id="btnAddPlayer" type="button">+ Añadir</button>
         </div>
         <ul class="player-chip-list" id="playerChipList"></ul>
-      </div>
-
-      <div class="card" id="durationCard">
-        <div class="timer-row">
-          <span class="clock" id="clock">03:00</span>
-          <div class="duration-select" id="durationSelect">
-            <button data-secs="120">2m</button>
-            <button data-secs="180" class="active">3m</button>
-            <button data-secs="300">5m</button>
-          </div>
-        </div>
       </div>
 
       <div class="card" id="localControlsCard">
@@ -1859,6 +1862,22 @@
   }
   function peerIdForCode(code){ return 'enreda-room-' + code; }
 
+  // Without a TURN fallback, WebRTC connections silently hang (never open,
+  // no error) whenever a peer is behind a NAT that plain STUN can't traverse
+  // (common on mobile networks) — this is what made joining a room appear to
+  // do nothing. openrelay.metered.ca is a public demo TURN service.
+  const PEER_CONFIG = {
+    config: {
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+        { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+        { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
+      ]
+    }
+  };
+  const JOIN_TIMEOUT_MS = 15000;
+
   function buildRoomLink(code){
     return location.origin + location.pathname + '?room=' + code;
   }
@@ -1941,7 +1960,7 @@
   function createRoom(){
     if(!captureIdentity()) return;
     const code = genRoomCode();
-    const peer = new Peer(peerIdForCode(code));
+    const peer = new Peer(peerIdForCode(code), PEER_CONFIG);
     room = {
       code, isHost:true, peer, conns:new Map(),
       players:new Map(), numRounds:1, round:0, duration,
@@ -2062,21 +2081,37 @@
     if(!captureIdentity()) return;
     const code = roomCodeInput.value.trim().toUpperCase();
     if(!code){ showRoomStatus('Ingresá el código de la sala', 'bad'); return; }
-    const peer = new Peer();
+    const peer = new Peer(PEER_CONFIG);
     room = { code, isHost:false, peer, players:new Map(), numRounds:1, round:0, duration };
     showRoomStatus('Conectando…', '');
+
+    let joined = false;
+    const timeoutId = setTimeout(()=>{
+      if(joined) return;
+      showRoomStatus('No se pudo conectar con la sala — revisá el código y tu conexión, y probá de nuevo', 'bad');
+      peer.destroy();
+      room = null;
+    }, JOIN_TIMEOUT_MS);
+
     peer.on('open', ()=>{
-      const conn = peer.connect(peerIdForCode(code));
+      const conn = peer.connect(peerIdForCode(code), { reliable: true });
       room.hostConn = conn;
       conn.on('open', ()=>{
+        joined = true;
+        clearTimeout(timeoutId);
         conn.send({type:'join', name:myName, emoji:myEmoji});
         enterRoomUI();
         showRoomStatus('Conectado — esperando a que el anfitrión empiece', '');
       });
       conn.on('data', (msg)=> handleGuestMessage(msg));
       conn.on('close', ()=>{ showRoomStatus('Se perdió la conexión con el anfitrión', 'bad'); });
+      conn.on('error', ()=>{
+        clearTimeout(timeoutId);
+        if(!joined) showRoomStatus('No se pudo conectar con la sala — probá de nuevo', 'bad');
+      });
     });
     peer.on('error', (err)=>{
+      clearTimeout(timeoutId);
       showRoomStatus('No se pudo conectar (código incorrecto o red): ' + err.type, 'bad');
     });
   }
